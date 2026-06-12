@@ -64,6 +64,46 @@ jobs:
           echo "==== baked uci-defaults/99-set-lan-ip ===="
           cat files/etc/uci-defaults/99-set-lan-ip
 
+      - name: Enable pstore/ramoops in kernel (diagnostic)
+        run: |
+          cd owrt
+          k=target/linux/ramips/mt7621/config-6.6
+          test -f "$k" || { echo "MISSING $k"; ls target/linux/ramips/mt7621/; exit 1; }
+          sed -i '/CONFIG_PSTORE/d' "$k"
+          cat >> "$k" <<'EOF'
+          CONFIG_PSTORE=y
+          CONFIG_PSTORE_RAM=y
+          CONFIG_PSTORE_CONSOLE=y
+          CONFIG_PSTORE_PMSG=y
+          EOF
+          echo "==== kernel config tail ===="
+          tail -8 "$k"
+
+      - name: Add ramoops reserved-memory to DIR-882 DTS (diagnostic)
+        run: |
+          cd owrt
+          d=target/linux/ramips/dts/mt7621_dlink_dir-882-a1.dts
+          test -f "$d" || { echo "MISSING $d"; ls target/linux/ramips/dts/; exit 1; }
+          cat >> "$d" <<'EOF'
+
+          / {
+          reserved-memory {
+          #address-cells = <1>;
+          #size-cells = <1>;
+          ranges;
+          ramoops@7e00000 {
+          compatible = "ramoops";
+          reg = <0x07e00000 0x100000>;
+          record-size = <0x8000>;
+          console-size = <0x8000>;
+          pmsg-size = <0x8000>;
+          };
+          };
+          };
+          EOF
+          echo "==== dts tail ===="
+          tail -20 "$d"
+
       - name: Update & install feeds
         run: |
           cd owrt
@@ -122,6 +162,6 @@ jobs:
       - name: Upload images
         uses: actions/upload-artifact@v4
         with:
-          name: dir882-lzma-images-0x50000
+          name: dir882-ramoops-0x50000
           path: out/*
           if-no-files-found: error
