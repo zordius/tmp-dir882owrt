@@ -1,3 +1,7 @@
+# STAGED — cache-enabled build. NOT active (not under .github/workflows/).
+# To activate: copy this over .github/workflows/build.yml then push.
+# Adds: dl/ cache + ccache (CONFIG_CCACHE=y). 2nd+ builds ~15-30 min.
+
 name: build-dir882-lzma
 
 on:
@@ -39,18 +43,8 @@ jobs:
           inblk && /^endef/ { print "  $(Device/uimage-lzma-loader)"; inblk=0 }
           { print }
           ' "$f" > "$f.new" && mv "$f.new" "$f"
-          echo "==== recipe ===="
+          echo "==== patched recipe ===="
           grep -n -A 25 'define Device/dlink_dir-882-a1' "$f"
-
-      - name: Patch flash layout to firmware @ 0x50000 (match Breed)
-        run: |
-          cd owrt
-          g=target/linux/ramips/dts/mt7621_dlink_flash-16m-a1.dtsi
-          sed -i 's/reg = <0x40000 0x20000>;/reg = <0x40000 0x10000>;/' "$g"
-          sed -i 's/partition@60000 {/partition@50000 {/' "$g"
-          sed -i 's/reg = <0x60000 0xfa0000>;/reg = <0x50000 0xfb0000>;/' "$g"
-          echo "==== patched flash layout (firmware must be 0x50000) ===="
-          grep -n -E 'partition@|label|reg = <0x' "$g"
 
       - name: Update & install feeds
         run: |
@@ -58,7 +52,7 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Configure (.config) + ccache
+      - name: Configure (.config) + ccache on
         run: |
           cd owrt
           cat > .config <<'EOF'
@@ -98,6 +92,9 @@ jobs:
           cd owrt
           make -j$(nproc) || make -j1 V=s
 
+      - name: ccache stats
+        run: cd owrt && ccache -s 2>/dev/null || ./staging_dir/host/bin/ccache -s 2>/dev/null || true
+
       - name: Collect images
         run: |
           cd owrt
@@ -110,6 +107,6 @@ jobs:
       - name: Upload images
         uses: actions/upload-artifact@v4
         with:
-          name: dir882-lzma-images-0x50000
+          name: dir882-lzma-images
           path: out/*
           if-no-files-found: error
