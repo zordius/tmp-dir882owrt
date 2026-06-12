@@ -52,6 +52,18 @@ jobs:
           echo "==== patched flash layout (firmware must be 0x50000) ===="
           grep -n -E 'partition@|label|reg = <0x' "$g"
 
+      - name: Bake default LAN IP 192.168.199.1
+        run: |
+          cd owrt
+          mkdir -p files/etc/uci-defaults
+          cat > files/etc/uci-defaults/99-set-lan-ip <<'EOF'
+          uci -q set network.lan.ipaddr='192.168.199.1'
+          uci -q commit network
+          exit 0
+          EOF
+          echo "==== baked uci-defaults/99-set-lan-ip ===="
+          cat files/etc/uci-defaults/99-set-lan-ip
+
       - name: Update & install feeds
         run: |
           cd owrt
