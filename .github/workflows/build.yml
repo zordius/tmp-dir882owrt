@@ -26,9 +26,9 @@ jobs:
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
             python3-setuptools python3-distutils rsync unzip zlib1g-dev file wget swig
 
-      - name: Clone OpenWrt 24.10
+      - name: Clone OpenWrt v24.10.7 (pinned tag)
         run: |
-          git clone --depth 1 -b openwrt-24.10 https://github.com/openwrt/openwrt.git owrt
+          git clone --depth 1 -b v24.10.7 https://github.com/openwrt/openwrt.git owrt
 
       - name: Patch dir-882-a1 to use lzma-loader
         run: |
@@ -101,10 +101,27 @@ jobs:
           restore-keys: |
             owrt-ccache-2410-
 
+      - name: Cache prebuilt toolchain + host tools (pinned to v24.10.7)
+        uses: actions/cache@v4
+        with:
+          path: |
+            owrt/staging_dir/toolchain-*
+            owrt/staging_dir/host
+            owrt/build_dir/toolchain-*
+            owrt/build_dir/host
+          key: owrt-tc-v24.10.7-mt7621
+
       - name: Download sources
         run: |
           cd owrt
           make download -j8 || make download -j1 V=s
+
+      - name: Touch restored toolchain newer than source (skip rebuild)
+        run: |
+          cd owrt
+          for d in staging_dir/toolchain-* staging_dir/host build_dir/toolchain-* build_dir/host; do
+            [ -e "$d" ] && find "$d" -exec touch {} + ; done
+          echo "toolchain restored?" ; ls -d build_dir/toolchain-* 2>/dev/null || echo "(cold cache: toolchain will build this run)"
 
       - name: Build
         run: |
