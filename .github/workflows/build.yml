@@ -118,27 +118,10 @@ jobs:
           restore-keys: |
             owrt-ccache-2410-
 
-      - name: Cache prebuilt toolchain + host tools (pinned to v24.10.7)
-        uses: actions/cache@v4
-        with:
-          path: |
-            owrt/staging_dir/toolchain-*
-            owrt/staging_dir/host
-            owrt/build_dir/toolchain-*
-            owrt/build_dir/host
-          key: owrt-tc-v24.10.7-mt7621
-
       - name: Download sources
         run: |
           cd owrt
           make download -j8 || make download -j1 V=s
-
-      - name: Touch restored toolchain newer than source (skip rebuild)
-        run: |
-          cd owrt
-          for d in staging_dir/toolchain-* staging_dir/host build_dir/toolchain-* build_dir/host; do
-            [ -e "$d" ] && find "$d" -exec touch {} + ; done
-          echo "toolchain restored?" ; ls -d build_dir/toolchain-* 2>/dev/null || echo "(cold cache: toolchain will build this run)"
 
       - name: Build
         run: |
